@@ -1,0 +1,54 @@
+{
+  "schema": "mood-still/2",
+  "source": {
+    "dialogue": "柴犬：你带伞了吗？\n小男孩：……没有。",
+    "digest": "sha1:fixture"
+  },
+  "line_pick": {
+    "index": 2,
+    "quote": "……没有。",
+    "why": "落点：承认之后被当场戳穿"
+  },
+  "cast": [
+    "柴犬",
+    "小男孩"
+  ],
+  "scene": {
+    "place": "巷口",
+    "time": "夜",
+    "weather": "大雨",
+    "light": "暖窗光从右后方",
+    "mood": "安静",
+    "action": "x",
+    "framing": "远景"
+  },
+  "prompt": {
+    "text": "x",
+    "chars": 1
+  },
+  "image": {
+    "file": "x.png",
+    "w": 1024,
+    "h": 768
+  },
+  "bubbles": [
+    {
+      "speaker": "小男孩",
+      "text": "……没有。",
+      "anchor": [
+        0.68,
+        0.24
+      ],
+      "slot": "mid"
+    },
+    {
+      "speaker": "小男孩",
+      "text": "骗人。",
+      "anchor": [
+        0.68,
+        0.24
+      ],
+      "slot": "mid"
+    }
+  ]
+}

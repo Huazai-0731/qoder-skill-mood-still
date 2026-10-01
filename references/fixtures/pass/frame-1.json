@@ -1,0 +1,45 @@
+{
+  "schema": "mood-still/2",
+  "source": {
+    "dialogue": "柴犬：你带伞了吗？\n小男孩：……没有。",
+    "digest": "sha1:fixture"
+  },
+  "line_pick": {
+    "index": 1,
+    "quote": "你带伞了吗？",
+    "why": "明知故问：狗已经看见门口是干的"
+  },
+  "cast": [
+    "柴犬",
+    "小男孩"
+  ],
+  "scene": {
+    "place": "屋檐下",
+    "time": "傍晚",
+    "weather": "小雨",
+    "light": "暖窗光从右后方",
+    "mood": "安静",
+    "action": "x",
+    "framing": "近景"
+  },
+  "prompt": {
+    "text": "x",
+    "chars": 1
+  },
+  "image": {
+    "file": "x.png",
+    "w": 1024,
+    "h": 768
+  },
+  "bubbles": [
+    {
+      "speaker": "小男孩",
+      "text": "你带伞了吗？",
+      "anchor": [
+        0.22,
+        0.24
+      ],
+      "slot": "mid"
+    }
+  ]
+}

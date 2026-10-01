@@ -1,0 +1,32 @@
+{
+  "schema": "mood-still/roster-2",
+  "version": 2,
+  "note": "bible 字段是固定素材：每次生成必须原文逐字出现在画面提示词里，不得改写一个词。validate_frame.cjs 的 D4 强制校验。",
+  "v2_change": "删掉了 bible 末尾的表情基调句（v1 的「a gentle, curious, open face」与「a shy, earnest, gentle face」）。T4 实测：那两句会把默认情绪焊进每一张图，让低沉场景里的角色笑出来。bible 只描述**不变的外观**，表情一律由 SCENE 承担。",
+  "characters": {
+    "柴犬": {
+      "name_en": "Shiba",
+      "bible": "Shiba — a small, slightly plump Shiba Inu puppy with warm amber-orange fur; cream-coloured muzzle, chest, belly, inner ears, the underside of all four paws and the underside of the tail; large round dark-brown eyes with two crisp white highlights in each eye; small rounded-triangular ears; a blunt short muzzle with a small dark nose and fine whisker dots; fluffy cheek tufts; a thick curled tail; soft rounded body proportions with short legs.",
+      "palette": {
+        "fur": "#E8A052",
+        "fur_shade": "#D0813A",
+        "cream": "#F7E9D2",
+        "eye": "#3A2418"
+      },
+      "default_position": "left"
+    },
+    "小男孩": {
+      "name_en": "Ren",
+      "bible": "Ren — a slight boy of about eight years old with short, tousled dark-brown hair and a soft round face; large dark-brown eyes with two crisp white highlights in each eye, matching the dog; a small button nose and a thin mouth; he wears a warm amber-orange hooded rain jacket with two front pockets over a pale cream shirt, loose slate-grey trousers and dark rubber boots; slim build with soft rounded proportions and a slightly large head for his body.",
+      "palette": {
+        "hair": "#4A3323",
+        "jacket": "#E0913F",
+        "shirt": "#F4EAD8",
+        "trousers": "#5C6672",
+        "skin": "#F3D2B4",
+        "eye": "#3A2418"
+      },
+      "default_position": "right"
+    }
+  }
+}

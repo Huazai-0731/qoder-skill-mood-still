@@ -1,0 +1,45 @@
+{
+  "schema": "mood-still/2",
+  "source": {
+    "dialogue": "柴犬：你带伞了吗？\n小男孩：……没有。",
+    "digest": "sha1:fixture"
+  },
+  "line_pick": {
+    "index": 2,
+    "quote": "……没有。",
+    "why": "换场：把同一句挪到室内用表情说"
+  },
+  "cast": [
+    "柴犬",
+    "小男孩"
+  ],
+  "scene": {
+    "place": "玄关",
+    "time": "清晨",
+    "weather": "阴",
+    "light": "暖窗光从右后方",
+    "mood": "安静",
+    "action": "x",
+    "framing": "特写"
+  },
+  "prompt": {
+    "text": "x",
+    "chars": 1
+  },
+  "image": {
+    "file": "x.png",
+    "w": 1024,
+    "h": 768
+  },
+  "bubbles": [
+    {
+      "speaker": "小男孩",
+      "text": "算了。",
+      "anchor": [
+        0.35,
+        0.24
+      ],
+      "slot": "mid"
+    }
+  ]
+}

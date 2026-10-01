@@ -1,0 +1,8 @@
+# 钉死行尾：本 skill 的 D4 闸对设定卡与画风锁做**逐字节**比对，
+# 而 style-lock.txt 是多行文件。若 clone 时被 autocrlf 换成 CRLF，
+# 会出现"素材没改却报 roster/prompt 漂移"的假报警（本项目已被 CRLF 咬过两次）。
+* text=auto eol=lf
+
+# 真二进制（若有）不参与换行转换
+*.png binary
+*.jpg binary

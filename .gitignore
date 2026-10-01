@@ -1,0 +1,3 @@
+# 出图辅助脚本 import compose_bubble 时可能落下的字节码，不入库
+__pycache__/
+*.pyc

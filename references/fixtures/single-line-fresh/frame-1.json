@@ -1,0 +1,45 @@
+{
+  "schema": "mood-still/2",
+  "source": {
+    "dialogue": "柴犬：他们说明天就把我送去乡下。",
+    "digest": "sha1:fixture-single"
+  },
+  "line_pick": {
+    "index": 1,
+    "quote": "他们说明天就把我送去乡下。",
+    "why": "唯一的一句，说出的是自己被抛弃的预告，没有听众。"
+  },
+  "cast": [
+    "柴犬"
+  ],
+  "scene": {
+    "place": "院子的狗窝旁",
+    "time": "夜",
+    "weather": "晴",
+    "light": "x",
+    "mood": "x",
+    "action": "x",
+    "framing": "特写"
+  },
+  "prompt": {
+    "text": "x",
+    "chars": 1
+  },
+  "image": {
+    "file": "x.png",
+    "w": 1024,
+    "h": 768
+  },
+  "bubbles": [
+    {
+      "speaker": "柴犬",
+      "text": "他们说明天就把我送去乡下。",
+      "anchor": [
+        0.36,
+        0.4
+      ],
+      "head_r": 0.14,
+      "slot": "large"
+    }
+  ]
+}

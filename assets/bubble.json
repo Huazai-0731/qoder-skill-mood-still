@@ -1,0 +1,26 @@
+{
+  "schema": "mood-still/bubble-1",
+  "font": {
+    "path": "C:/Windows/Fonts/msyhbd.ttc",
+    "fallbacks": ["C:/Windows/Fonts/simhei.ttf", "C:/Windows/Fonts/NotoSansSC-VF.ttf"],
+    "size": 38,
+    "line_height": 50,
+    "min_size": 22
+  },
+  "slots": { "small": 7, "mid": 9, "large": 12 },
+  "max_lines": 2,
+  "col_weight": { "cjk": 1.0, "other": 0.5 },
+  "padding_x": 22,
+  "padding_y": 16,
+  "radius": 20,
+  "fill": "#FFFDF7",
+  "fill_alpha": 250,
+  "stroke": "#3B2A1A",
+  "stroke_width": 5,
+  "text_color": "#33231A",
+  "tail": { "half_width": 13, "reach": 0.42 },
+  "margin": { "top": 24, "side": 24 },
+  "head_clearance": 1.18,
+  "head_overlap_max": 0.15,
+  "overlap_grid": 48
+}

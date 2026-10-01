@@ -1,0 +1,45 @@
+{
+  "schema": "mood-still/2",
+  "source": {
+    "dialogue": "柴犬：你带伞了吗？\n小男孩：……没有。",
+    "digest": "sha1:fixture"
+  },
+  "line_pick": {
+    "index": 2,
+    "quote": "……没有。",
+    "why": "负样本：三张互为复读，判据若不放它过就说明判据有效"
+  },
+  "cast": [
+    "柴犬",
+    "小男孩"
+  ],
+  "scene": {
+    "place": "屋檐下",
+    "time": "傍晚",
+    "weather": "小雨",
+    "light": "暖窗光从右后方",
+    "mood": "安静",
+    "action": "x",
+    "framing": "近景"
+  },
+  "prompt": {
+    "text": "x",
+    "chars": 1
+  },
+  "image": {
+    "file": "x.png",
+    "w": 1024,
+    "h": 768
+  },
+  "bubbles": [
+    {
+      "speaker": "小男孩",
+      "text": "……没有。",
+      "anchor": [
+        0.7,
+        0.24
+      ],
+      "slot": "mid"
+    }
+  ]
+}
