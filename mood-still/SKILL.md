@@ -99,14 +99,21 @@ node <skill>/scripts/assemble_frame.cjs gallery/groups/<组>/_scenes.json
 
 **但姿态要换得画得出来**：实测要求"完全背面、脸不可见"会得到一个解剖错误的嵌合体——身体背面 + 头上却画着正脸的眼睛。可用的低沉姿态必须**保持正面或四分之三视角**：趴下、下巴压住两只前爪、头低垂、半闭眼。"趴着"这个骨架本身就已经足够低能量，不需要靠转身。同一候选最多重出 2 次，仍不合就如实告诉用户"这一句我拿不到对的表情"，不要交一张错的。
 
-**所有闸门查的都是文本字段与几何；画面里角色在笑还是在哭，机器一概不知。** 这一步是人工终审之前唯一的自查机会。
+**重出会把你已经拿到的东西一起重掷。** 测试场跨五轮的统计是：首抽过四闸门 33%，而**重出把原本已达标项弄坏 44.4%**（其中闸门级 22.2%）——同一张图里"狗站起来了"和"狗别咧嘴"在模型端是竞争关系，不是并列关系。由此三条：
+
+- **一次只钉一个会互相抢像素的缺陷**，其余原样保留；否则你不知道到底是哪个改动起了作用，也不知道什么被弄坏了。修完必须回头复查上一版已经对的那几项。
+- **否定式对"可见性"也无效**。`so the paws are NOT visible`、`no blush`、`no stray marks` 这三句在实测里全部没被执行；有效写法是**用另一件肯定事实占住那圈像素**："脸颊与额头是同一种平涂肤色"、"从狗身侧往右扫过：体毛 → 尾巴带 → 毯子，两条前腿都留在那条带子后面"。
+- **别人给你的措辞就照抄，别顺手加工**。实测把建议句改写成 `high eye-to-face ratio typical of a NINE OR TEN YEAR OLD` 之后，这句字面要的正是幼儿特征，还和设定卡的 `about eight years old` / `soft round face` 三处打架。
+
+**所有文本闸门查的都是字段与几何；画面里角色在笑还是在哭、有没有换脸，机器一概不知**——除了 §6 的 `identity_check.py`，它量的是像素。这一步仍是人工终审之前唯一的自查机会。
 
 ### 5. 写帧规格
 
 `frame-N.json`，schema `mood-still/2`。字段见 `references/frame-spec.md`。**它由 §3 的 `assemble_frame.cjs` 生成，不要手改**——要改就改 `_scenes.json` 再重跑，否则下一轮重跑会覆盖你的手改。你唯一需要手写的数是：
 
-- `bubbles[].anchor` 是**归一化坐标**（0..1），指向说话人头部中心；`head_r` 是头部圆盘半径（归一化到高度）。**看图之后再估**，估准了引线才不会指错人——但别裸估：跑 `python <skill>/scripts/anchor_grid.py --frame gallery/groups/<组>/frame-N.json`，它把 0.1 归一化网格与**当前这两个数画出的圆**叠在底图上，输出到 `work/grid/`（不进组目录、不进画廊）。圆压在头发上而不是脸上 → 调 `anchor`；圆盖不住头部质量 → 调 `head_r`。改 `_scenes.json` 重跑 §3 与 §6，再叠一次确认。帧还没生成时给它底图路径 + `--disc X,Y,R` 探一个候选圆。
-- 气泡文本超长按 `references/bubble-rules.md` 压缩，并在 `why` 末尾追加 `（已压缩：原句 <…>）`；`line_pick.quote` 永远是原文。
+- `bubbles[].anchor` 是**归一化坐标**（0..1），指向说话人头部中心；`head_r` 是头部圆盘半径（归一化到高度）。**看图之后再估**，估准了引线才不会指错人——但别裸估：跑 `python <skill>/scripts/anchor_grid.py --frame gallery/groups/<组>/frame-N.json`，它把 0.1 归一化网格与**当前这两个数画出的圆**叠在底图上，输出到 `work/grid/`（不进组目录、不进画廊）。圆压在头发上而不是脸上 → 调 `anchor`；圆盖不住头部质量 → 调 `head_r`。改 `_scenes.json` 重跑 §3 与 §6，再叠一次确认。帧还没生成时给它底图路径 + `--disc X,Y,R` 探一个候选圆。**首估必偏**：实测三个组的圆盘全部估歪，靠这一步一轮才改准。
+- `identity`（可选但强烈建议）：给 §6 同一性检查用的归一化区域框 `{ "under_eye_near": [x0,y0,x1,y1], "tail_region": [...], "dog_muzzle": [...] }`。**框必须由看过图的人标**——按颜色自动定位杂点不可行（那块水泥斑的 RGB 与背景墙几乎一样，实测命中 3567 处）。`identity_expect.tongue_baseline` 填同一场景已通过帧的舌色像素数，跨版本一比就知道狗嘴有没有从"张开带舌"闭成笑线。
+- 气泡文本超长按 `references/bubble-rules.md` 压缩，并在 `why` 末尾追加 `（已压缩：原句 <…>）`；`line_pick.quote` 永远是原文。**压缩不许丢掉态度词**（实测把「你激动什么」切掉，等于把这句的刀锋剪了）；`why` 里声称改了什么，必须以文件为准。
 
 `source.digest` / `source.roster_digest` / `prompt.text` / `prompt.chars` / `image.w/h` 都由脚本写，不要手填——手填的 `roster_digest` 只要格式差一点（例如多打一个 `sha1:` 前缀）就会与素材对不上，D4 被降级跳过，这一帧就失去设定卡保护，而退出码还是 0。
 
@@ -126,19 +133,24 @@ console.log('sha1:'+c.createHash('sha1').update(s).digest('hex').slice(0,12))" <
 
 ### 6. 过闸
 
-前四条每轮必跑。
+前五条每轮必跑。
 
 ```bash
 node  <skill>/scripts/validate_frame.cjs  gallery/groups/<组>/frame-1.json ...
 python <skill>/scripts/compose_bubble.py  gallery/groups/<组>/frame-1.json  gallery/groups/<组>
 python <skill>/scripts/drift_check.py     gallery/groups/<组> --expect fresh
+python <skill>/scripts/identity_check.py  gallery/groups/<组>/frame-1.json ...
 python <skill>/scripts/build_gallery.py
 ```
+
+`identity_check.py` 量的是**像素**，专治"重出把角色换了脸"：I1 眼下平色极差 ≤15（多出腮红粉斑会跳到几十）、I2 尾巴邻域里有没有"又暗又灰的实心块"（杂点与合法奶油尾尖靠饱和度分不开，必须同时比周围暗）、I3 口鼻区舌色像素与已通过帧是否同数量级（狗嘴从"张开带舌"闭成笑线会掉一个数量级）。它没标 `identity` 区域就只报 SKIP——**没有区域等于没检查**，别把 SKIP 当通过。
+
+注意 `validate_frame.cjs` 的 D8 数的是**单次调用传入的帧**，所以**必须逐组跑**；把多个组一次喂进去，跨版本累积的候选会被判成刷图。
 
 只要动过 skill 自身（`assets/`、`scripts/`、`SKILL.md`），再多跑这三条：
 
 ```bash
-node <skill>/scripts/mutation_test.cjs    # 变异实验：证明闸门真的会咬，22 例
+node <skill>/scripts/mutation_test.cjs    # 变异实验：证明闸门真的会咬，30 例
 node <skill>/scripts/check_skill.cjs      # frontmatter / 正文长度 / 引用的文件是否都存在
 node <skill>/scripts/verify_gallery.cjs   # 在项目根跑：画廊引用的图都在，废图没混进交付
 ```
@@ -187,6 +199,7 @@ python <skill>/scripts/drift_check.py $F/single-line-stale   --expect stale
 - `scripts/validate_frame.cjs` — D0-D10 前置闸。零 npm 依赖。
 - `scripts/compose_bubble.py` — 接缝 S1，确定性合成。需 Pillow。用法 `<帧> [<帧> ...] <输出目录>` 或 `--fit <帧> ...`。头部圆盘几何 `head_disc()` 是**唯一定义处**。
 - `scripts/anchor_grid.py` — §5 的看图辅助（不参与交付）：叠 0.05/0.1 归一化网格与头部圆盘，输出到 `work/grid/`。圆盘几何 import 自 `compose_bubble.head_disc`，两边永远是同一个圆。
+- `scripts/identity_check.py` — §6 的同一性回归检查：读帧规格里的 `identity` 区域，**量像素**判眼下平色 / 尾巴灰块 / 口鼻舌色。它是为"重出把角色换脸"这一类失败专门造的，此前没有任何检查会拦。
 - `scripts/drift_check.py` — 连测判死板闸 + 负样本/对照自证。
 - `scripts/build_gallery.py` — 重建 `./gallery/index.html`。画廊长在**当前项目根目录**，不在 skill 目录内。
 - `scripts/mutation_test.cjs` — 变异实验：证明闸门真的会咬。改了 `assets/`、`scripts/` 或本文件就跑它。

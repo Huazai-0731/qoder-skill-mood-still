@@ -278,8 +278,50 @@ catch (e) { vout = (e.stdout || '') + (e.stderr || ''); vcode = e.status || 1; }
 const strayok = vsetup === 0 && vcode !== 0 && /STRAY/.test(vout) && !/ENOTDIR|Error:/.test(vout);
 console.log(`${strayok ? 'ok  ' : 'BAD '} verify-stray-in-groups      expect=FAIL(STRAY) got=${vsetup !== 0 ? 'setup-failed' : (vcode === 0 ? 'PASS' : (/ENOTDIR/.test(vout) ? 'CRASHED' : 'FAIL(STRAY)'))}`);
 
-const total = cases.length + 2 + extra.length + 7;
-const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0) + (collideok ? 1 : 0) + (strayok ? 1 : 0);
+// 同一性回归检查必须"会咬"：合成一张干净的琥珀色尾巴区应当 PASS，
+// 只往里面画一块灰杂点就必须 FAIL。两个方向都要断言——只红不绿是坏判据，
+// 只绿不红是假闸门。
+function makePatchPng(w, h, base, patches) {
+  const px = Buffer.alloc(w * h * 3);
+  for (let i = 0; i < w * h; i++) { px[i * 3] = base[0]; px[i * 3 + 1] = base[1]; px[i * 3 + 2] = base[2]; }
+  for (const p of patches) {
+    for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) {
+      if (y < 0 || y >= h || x < 0 || x >= w) continue;
+      px[(y * w + x) * 3] = p.c[0]; px[(y * w + x) * 3 + 1] = p.c[1]; px[(y * w + x) * 3 + 2] = p.c[2];
+    }
+  }
+  const t = [];
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  const crc = b => { let c = 0xFFFFFFFF; for (const x of b) c = t[(c ^ x) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const chunk = (type, data) => { const l = Buffer.alloc(4); l.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type, 'ascii'), data]); const cc = Buffer.alloc(4); cc.writeUInt32BE(crc(td)); return Buffer.concat([l, td, cc]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const raw = Buffer.alloc(h * (1 + w * 3));
+  for (let y = 0; y < h; y++) { raw[y * (1 + w * 3)] = 0; px.copy(raw, y * (1 + w * 3) + 1, y * w * 3, (y + 1) * w * 3); }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+const ID = path.join(OUT, 'idcheck');
+fs.mkdirSync(ID, { recursive: true });
+const AMBER = [200, 130, 60], GREY = [120, 105, 95];
+fs.writeFileSync(path.join(ID, 'clean.png'), makePatchPng(200, 200, AMBER, []));
+fs.writeFileSync(path.join(ID, 'smudge.png'), makePatchPng(200, 200, AMBER, [{ x: 90, y: 90, w: 14, h: 12, c: GREY }]));
+const idFrame = (file) => ({ schema: 'mood-still/2', source: { dialogue: 'x', digest: 'sha1:x', roster_digest: CUR },
+  line_pick: { index: 1, quote: 'x', why: 'x' }, cast: ['柴犬'], scene: {}, prompt: { text: 'x', chars: 1 },
+  image: { file: file, w: 200, h: 200 }, bubbles: [], identity: { tail_region: [0.2, 0.2, 0.8, 0.8] } });
+fs.writeFileSync(path.join(ID, 'frame-clean.json'), JSON.stringify(idFrame('clean.png'), null, 2));
+fs.writeFileSync(path.join(ID, 'frame-smudge.json'), JSON.stringify(idFrame('smudge.png'), null, 2));
+let iout = '', icode = 0;
+try { iout = execFileSync('python', [path.join(SKILL, 'scripts', 'identity_check.py'),
+  path.join(ID, 'frame-clean.json'), path.join(ID, 'frame-smudge.json')], { encoding: 'utf8' }); }
+catch (e) { iout = (e.stdout || '') + (e.stderr || ''); icode = e.status || 1; }
+const idlines = iout.split(/\r?\n/);
+const cleanPass = icode !== 0 && /no grey blob  ok/.test(iout) && !/FAIL  frame-clean/.test(iout);
+const smudgeCaught = /FAIL  frame-smudge/.test(iout) && idlines.some(l => /GREY BLOB/.test(l));
+const idok = cleanPass && smudgeCaught;
+console.log(`${idok ? 'ok  ' : 'BAD '} identity-check-bites        expect=clean PASS + smudge FAIL got=${cleanPass ? 'clean ok' : 'clean WRONG'} / ${smudgeCaught ? 'smudge caught' : 'smudge MISSED'} (exit ${icode})`);
+
+const total = cases.length + 2 + extra.length + 8;
+const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0) + (collideok ? 1 : 0) + (strayok ? 1 : 0) + (idok ? 1 : 0);
 console.log(`\n${totalPass}/${total} checks behaved as expected`);
 if (totalPass === total) fs.rmSync(OUT, { recursive: true, force: true });
 else console.log('scratch kept for inspection: ' + OUT);
