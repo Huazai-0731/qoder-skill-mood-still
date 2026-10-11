@@ -245,8 +245,37 @@ const multiok = g22code === 0
   && fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png'));
 console.log(`${multiok ? 'ok  ' : 'BAD '} anchor-grid-multi-group     expect=2 distinct PNGs got=${g22code !== 0 ? 'exit' + g22code : (fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png')) ? '2 distinct PNGs' : 'collision: outputs overwrote each other')}`);
 
-const total = cases.length + 2 + extra.length + 5;
-const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0);
+// 混组调用合成：两个组都有 frame-1.json，共用一个输出目录时后写的那张会静默盖掉前一张。
+// 测试场第一次跑四个组就中了这一枪——必须当场拒绝。
+const cg = path.join(OUT, 'crossg');
+for (const g of ['A', 'B']) {
+  fs.mkdirSync(path.join(cg, g), { recursive: true });
+  fs.writeFileSync(path.join(cg, g, 'base-1.png'), makePng(W, H, [237, 232, 222]));
+  fs.writeFileSync(path.join(cg, g, 'frame-1.json'), JSON.stringify(base, null, 2));
+}
+let ccode = 0, cout = '';
+try { execFileSync('python', [path.join(SKILL, 'scripts', 'compose_bubble.py'),
+  path.join(cg, 'A', 'frame-1.json'), path.join(cg, 'B', 'frame-1.json'), cg], { encoding: 'utf8' }); }
+catch (e) { cout = (e.stdout || '') + (e.stderr || ''); ccode = e.status || 1; }
+const collideok = ccode !== 0 && /output collision/.test(cout);
+console.log(`${collideok ? 'ok  ' : 'BAD '} compose-cross-group        expect=FAIL(collision) got=${ccode === 0 ? 'PASS(silent overwrite)' : cout.trim().slice(0, 40)}`);
+
+// groups/ 下出现散文件时，verify_gallery 要报 STRAY 并判失败，而不是抛 ENOTDIR 堆栈。
+const vg = path.join(OUT, 'vg');
+fs.mkdirSync(path.join(vg, 'gallery', 'groups', 'g1'), { recursive: true });
+fs.copyFileSync(path.join(cg, 'A', 'frame-1.json'), path.join(vg, 'gallery', 'groups', 'g1', 'frame-1.json'));
+execFileSync('python', [path.join(SKILL, 'scripts', 'compose_bubble.py'),
+  path.join(vg, 'gallery', 'groups', 'g1', 'frame-1.json'), path.join(vg, 'gallery', 'groups', 'g1')], { encoding: 'utf8' });
+fs.writeFileSync(path.join(vg, 'gallery', 'groups', 'stray.png'), 'x');
+execFileSync('python', [path.join(SKILL, 'scripts', 'build_gallery.py')], { cwd: vg, encoding: 'utf8' });
+let vcode = 0, vout = '';
+try { execFileSync('node', [path.join(SKILL, 'scripts', 'verify_gallery.cjs')], { cwd: vg, encoding: 'utf8' }); }
+catch (e) { vout = (e.stdout || '') + (e.stderr || ''); vcode = e.status || 1; }
+const strayok = vcode !== 0 && /STRAY/.test(vout) && !/ENOTDIR|Error:/.test(vout);
+console.log(`${strayok ? 'ok  ' : 'BAD '} verify-stray-in-groups      expect=FAIL(STRAY) got=${vcode === 0 ? 'PASS' : (/ENOTDIR/.test(vout) ? 'CRASHED' : 'FAIL(STRAY)')}`);
+
+const total = cases.length + 2 + extra.length + 7;
+const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0) + (collideok ? 1 : 0) + (strayok ? 1 : 0);
 console.log(`\n${totalPass}/${total} checks behaved as expected`);
 if (totalPass === total) fs.rmSync(OUT, { recursive: true, force: true });
 else console.log('scratch kept for inspection: ' + OUT);

@@ -33,6 +33,14 @@ const rejected = fs.existsSync(rejDir) ? fs.readdirSync(rejDir) : [];
 const leaked = rejected.filter(n => html.includes(n));
 
 const groups = fs.existsSync(GROUPS) ? fs.readdirSync(GROUPS) : [];
+// groups/ 下只该有组目录。散落的文件多半是 compose_bubble 传错输出目录留下的
+// （实测把多个组的帧混进一次调用，成品就落在了 groups/ 根上）——报出来，别崩。
+for (const g of [...groups]) {
+  if (fs.statSync(path.join(GROUPS, g)).isDirectory()) continue;
+  console.log('STRAY ' + g + '  (groups/ 下只该有组目录；成品可能写错了位置)');
+  bad++;
+  groups.splice(groups.indexOf(g), 1);
+}
 for (const g of groups) {
   for (const f of fs.readdirSync(path.join(GROUPS, g))) {
     if (!f.startsWith('frame-') || !f.endsWith('.json')) continue;

@@ -230,6 +230,15 @@ def main():
     # 把 PNG 塞进去、退出码还是 0。实测踩过，所以宁可当场拒绝。
     if os.path.isfile(out_dir) or out_dir.endswith(".json"):
         die("out_dir is not a directory: %s" % out_dir)
+    # 一次调用只能交一组：输出名取自帧文件名，跨组的 frame-1.json 会写进同一个
+    # frame-1.png，后一张静默盖掉前一张。实测把四个组混着传就中了这一枪。
+    seen = {}
+    for frame_path in frames:
+        name = os.path.basename(frame_path).replace(".json", ".png")
+        if name in seen:
+            die("output collision: %s would be written by both %s and %s; pass one group at a time"
+                % (name, seen[name], frame_path))
+        seen[name] = frame_path
     failed = 0
     for frame_path in frames:
         try:
