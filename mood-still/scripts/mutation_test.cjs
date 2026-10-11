@@ -264,15 +264,19 @@ console.log(`${collideok ? 'ok  ' : 'BAD '} compose-cross-group        expect=FA
 const vg = path.join(OUT, 'vg');
 fs.mkdirSync(path.join(vg, 'gallery', 'groups', 'g1'), { recursive: true });
 fs.copyFileSync(path.join(cg, 'A', 'frame-1.json'), path.join(vg, 'gallery', 'groups', 'g1', 'frame-1.json'));
-execFileSync('python', [path.join(SKILL, 'scripts', 'compose_bubble.py'),
-  path.join(vg, 'gallery', 'groups', 'g1', 'frame-1.json'), path.join(vg, 'gallery', 'groups', 'g1')], { encoding: 'utf8' });
+fs.copyFileSync(path.join(cg, 'A', 'base-1.png'), path.join(vg, 'gallery', 'groups', 'g1', 'base-1.png'));
+let vsetup = 0;
+try { execFileSync('python', [path.join(SKILL, 'scripts', 'compose_bubble.py'),
+  path.join(vg, 'gallery', 'groups', 'g1', 'frame-1.json'), path.join(vg, 'gallery', 'groups', 'g1')], { encoding: 'utf8' }); }
+catch (e) { vsetup = e.status || 1; }
 fs.writeFileSync(path.join(vg, 'gallery', 'groups', 'stray.png'), 'x');
-execFileSync('python', [path.join(SKILL, 'scripts', 'build_gallery.py')], { cwd: vg, encoding: 'utf8' });
+try { execFileSync('python', [path.join(SKILL, 'scripts', 'build_gallery.py')], { cwd: vg, encoding: 'utf8' }); }
+catch (e) { vsetup = e.status || 1; }
 let vcode = 0, vout = '';
 try { execFileSync('node', [path.join(SKILL, 'scripts', 'verify_gallery.cjs')], { cwd: vg, encoding: 'utf8' }); }
 catch (e) { vout = (e.stdout || '') + (e.stderr || ''); vcode = e.status || 1; }
-const strayok = vcode !== 0 && /STRAY/.test(vout) && !/ENOTDIR|Error:/.test(vout);
-console.log(`${strayok ? 'ok  ' : 'BAD '} verify-stray-in-groups      expect=FAIL(STRAY) got=${vcode === 0 ? 'PASS' : (/ENOTDIR/.test(vout) ? 'CRASHED' : 'FAIL(STRAY)')}`);
+const strayok = vsetup === 0 && vcode !== 0 && /STRAY/.test(vout) && !/ENOTDIR|Error:/.test(vout);
+console.log(`${strayok ? 'ok  ' : 'BAD '} verify-stray-in-groups      expect=FAIL(STRAY) got=${vsetup !== 0 ? 'setup-failed' : (vcode === 0 ? 'PASS' : (/ENOTDIR/.test(vout) ? 'CRASHED' : 'FAIL(STRAY)'))}`);
 
 const total = cases.length + 2 + extra.length + 7;
 const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0) + (collideok ? 1 : 0) + (strayok ? 1 : 0);
