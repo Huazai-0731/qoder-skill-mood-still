@@ -147,7 +147,13 @@ def main():
         draw_grid(im)
         for n, (cx, cy, r) in enumerate(discs_px):
             draw_disc(im, cx, cy, r, "d%d" % n)
-        out = os.path.join(out_dir, "grid-" + os.path.basename(img_path))
+        # 输出名必须带上底图所在的组目录：多组同时叠时每组的底图都叫 base-1.png，
+        # 只用 basename 会让后一组静默覆盖前一组（实测踩过）。
+        grp = os.path.basename(os.path.dirname(os.path.abspath(img_path)))
+        stem = os.path.basename(img_path)
+        if stem.lower().endswith(".png"):
+            stem = stem[:-4]
+        out = os.path.join(out_dir, "grid-%s-%s.png" % (grp, stem))
         im.save(out)
         note = ("  frame=%s" % src_frame) if src_frame else ""
         sys.stdout.write("GRID  %s  %dx%d  discs=%d%s\n" % (out, W, H, len(discs_px), note))

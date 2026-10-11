@@ -226,12 +226,27 @@ try { g21out = execFileSync('python', [path.join(SKILL, 'scripts', 'anchor_grid.
 catch (e) { g21out = (e.stdout || '') + (e.stderr || ''); g21code = e.status || 1; }
 const g21line = (g21out.split(/\r?\n/).find(l => /^DISC\s+0\s/.test(l)) || '').replace(/\s+/g, ' ').trim();
 const gridok = g21code === 0 && g21line === 'DISC 0 512.0 192.0 76.8'
-  && fs.existsSync(path.join(M21, 'grid', 'grid-base-1.png'))
+  && fs.existsSync(path.join(M21, 'grid', 'grid-M21-base-1.png'))
   && !/[^\x00-\x7F]/.test(g21out);
 console.log(`${gridok ? 'ok  ' : 'BAD '} anchor-grid-geometry        expect=DISC 0 512.0 192.0 76.8  got=${g21code !== 0 ? 'exit' + g21code + ' ' + g21out.trim().slice(0, 30) : (g21line || 'no DISC')}`);
 
-const total = cases.length + 2 + extra.length + 4;
-const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0);
+// 多组的底图都叫 base-1.png，一起叠网格时输出必须各自落地。
+// 只用 basename 命名会让后一组静默覆盖前一组——测试场第一次同时跑四组时就撞了。
+const M22 = path.join(OUT, 'M22');
+fs.mkdirSync(M22, { recursive: true });
+fs.writeFileSync(path.join(M22, 'base-1.png'), makePng(W, H, [200, 210, 220]));
+fs.copyFileSync(path.join(M21, 'frame-1.json'), path.join(M22, 'frame-1.json'));
+let g22code = 0, g22out = '';
+try { g22out = execFileSync('python', [path.join(SKILL, 'scripts', 'anchor_grid.py'), '--frame',
+  path.join(M21, 'frame-1.json'), path.join(M22, 'frame-1.json'), '--out', path.join(OUT, 'grid-multi')], { encoding: 'utf8' }); }
+catch (e) { g22out = (e.stdout || '') + (e.stderr || ''); g22code = e.status || 1; }
+const multiok = g22code === 0
+  && fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M21-base-1.png'))
+  && fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png'));
+console.log(`${multiok ? 'ok  ' : 'BAD '} anchor-grid-multi-group     expect=2 distinct PNGs got=${g22code !== 0 ? 'exit' + g22code : (fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png')) ? '2 distinct PNGs' : 'collision: outputs overwrote each other')}`);
+
+const total = cases.length + 2 + extra.length + 5;
+const totalPass = pass + (d8ok ? 1 : 0) + (oflowok ? 1 : 0) + (batchok ? 1 : 0) + (guardok ? 1 : 0) + (m20ok ? 1 : 0) + (gridok ? 1 : 0) + (multiok ? 1 : 0);
 console.log(`\n${totalPass}/${total} checks behaved as expected`);
 if (totalPass === total) fs.rmSync(OUT, { recursive: true, force: true });
 else console.log('scratch kept for inspection: ' + OUT);
