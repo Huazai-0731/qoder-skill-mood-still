@@ -32,8 +32,9 @@ import sys
 
 from PIL import Image
 
-DEFAULTS = {"under_eye_flat_max": 15.0, "tongue_order_tolerance": 10.0,
-            "smudge_sat_ratio": 0.55, "smudge_lum_ratio": 0.85}
+DEFAULTS = {"pink_delta": 25, "tongue_order_tolerance": 10.0,
+            "smudge_sat_ratio": 0.55, "smudge_lum_ratio": 0.85,
+            "under_eye_flat_max": 15.0, "eye_dark_lum": 60.0}
 
 
 def die(msg):
@@ -63,8 +64,44 @@ def sample(img, px):
 
 
 def flatness(img, px):
+    """I1b：小面积皮肤框内的亮度极差 + 最暗像素。
+
+    与 I1a 互补，缺一不可（实测）：极差抓得住 r2-06 的缺陷（106.0 对 07 的 7.4），
+    因为那处真正的破绽是**几道暗短线**而不是"更粉"；但它对框的位置极敏感——
+    往下挪 2% 会从 19.0 跳到 112.7，压到瞳孔更是直接 244.7。
+    所以最暗像素 < eye_dark_lum 时报 INCONCLUSIVE 而不是 FAIL：那是框标歪，不是缺陷。
+    粉团（I1a）对框歪免疫，但同一块腮红它测不出来（中位 r-g 本来就 71）。
+    """
     lums = sorted(lum(*c[:3]) for c in sample(img, px))
-    return lums[-1] - lums[0], lums[len(lums) // 2]
+    return lums[-1] - lums[0], lums[len(lums) // 2], lums[0]
+
+
+def pink_cluster(img, px, pink_delta):
+    """I1a：脸颊区里"比周围更粉"的成团像素。散点与描边不算。"""
+    x0, y0, x1, y1 = px
+    pts = list(sample(img, px))
+    rs = sorted(p[0] for p in pts)
+    gs = sorted(p[1] for p in pts)
+    bs = sorted(p[2] for p in pts)
+    m = len(rs) // 2
+    mr, mg, mb = rs[m], gs[m], bs[m]
+    med_pink = mr - mg
+    cw, ch = max(1, x1 - x0), max(1, y1 - y0)
+    hits = []
+    for y in range(ch):
+        for x in range(cw):
+            p = img.getpixel((x0 + x, y0 + y))
+            if (p[0] - p[1]) > med_pink + pink_delta and abs(p[1] - p[2]) < 30 and 60 < lum(*p[:3]) < 235:
+                hits.append((x, y))
+    if not hits:
+        return None, (med_pink, (mr, mg, mb))
+    hx0 = min(h[0] for h in hits); hx1 = max(h[0] for h in hits)
+    hy0 = min(h[1] for h in hits); hy1 = max(h[1] for h in hits)
+    bw, bh = hx1 - hx0 + 1, hy1 - hy0 + 1
+    density = len(hits) / float(bw * bh)
+    aspect = bw / float(bh)
+    blob = len(hits) >= 15 and density >= 0.15 and 0.3 <= aspect <= 3.3
+    return ((len(hits), density, aspect, (hx0, hy0, bw, bh)) if blob else ("scattered", len(hits), density, aspect)), (med_pink, (mr, mg, mb))
 
 
 def sat_of_mean(img, px):
@@ -151,14 +188,29 @@ def check(frame_path):
     th = dict(DEFAULTS)
     th.update(fr.get("identity_expect") or {})
 
-    fails, lines = 0, []
+    fails, inconclusive, lines = 0, 0, []
 
-    for key, label in (("under_eye_near", "I1 under-eye near"), ("under_eye_far", "I1 under-eye far")):
+    for key, label in (("under_eye_near", "I1 cheek near"), ("under_eye_far", "I1 cheek far")):
         if key in ident:
-            rng, med = flatness(img, region(img, ident[key]))
-            ok = rng <= th["under_eye_flat_max"]
-            fails += 0 if ok else 1
-            lines.append("%s  range=%.1f  med=%.1f  %s" % (label, rng, med, "ok" if ok else "FAIL"))
+            blob, (med_pink, medrgb) = pink_cluster(img, region(img, ident[key]), th["pink_delta"])
+            if blob is None:
+                lines.append("%s-a  no pink cluster (median r-g=%d)  ok" % (label, med_pink))
+            elif blob[0] == "scattered":
+                lines.append("%s-a  pink px=%d but scattered (density=%.2f aspect=%.2f)  ok"
+                             % (label, blob[1], blob[2], blob[3]))
+            else:
+                fails += 1
+                lines.append("%s-a  PINK BLOB hits=%d density=%.2f aspect=%.2f box=%s  FAIL"
+                             % (label, blob[0], blob[1], blob[2], blob[3]))
+            rng, med, darkest = flatness(img, region(img, ident[key]))
+            if rng > th["under_eye_flat_max"] and darkest < th["eye_dark_lum"]:
+                lines.append("%s-b  range=%.1f min=%.1f  INCONCLUSIVE 框压到眼睛，往下挪" % (label, rng, darkest))
+                inconclusive += 1
+            elif rng > th["under_eye_flat_max"]:
+                fails += 1
+                lines.append("%s-b  range=%.1f med=%.1f min=%.1f  FAIL" % (label, rng, med, darkest))
+            else:
+                lines.append("%s-b  range=%.1f med=%.1f min=%.1f  ok" % (label, rng, med, darkest))
 
     if "tail_region" in ident:
         worst, med = find_grey_smudge(img, region(img, ident["tail_region"]),
@@ -186,23 +238,32 @@ def check(frame_path):
             lines.append("CROP  %s -> idcrop-%s.png (measure by hand, same口径)" % (label, label.split()[1]))
 
     verdict = "PASS" if fails == 0 else "FAIL"
+    if fails == 0 and inconclusive:
+        verdict = "SKIP?"        # 有指标因框标歪而无法判定——不能当成通过
     sys.stdout.write("%s  %s\n" % (verdict, os.path.basename(frame_path)))
     for ln in lines:
         sys.stdout.write("      %s\n" % ln)
-    return fails
+    return fails, inconclusive
 
 
 def main():
     argv = sys.argv[1:]
     if not argv:
         die("usage: identity_check.py <frame.json> [...]")
-    total_fail = 0
+    total_fail = total_inc = 0
     for p in argv:
         r = check(p)
         if r:
-            total_fail += r
-    sys.stdout.write("\n%s  identity failures=%d\n" % ("PASS" if total_fail == 0 else "FAIL", total_fail))
-    sys.exit(0 if total_fail == 0 else 1)
+            total_fail += r[0]
+            total_inc += r[1]
+    if total_fail:
+        sys.stdout.write("\nFAIL  identity failures=%d inconclusive=%d\n" % (total_fail, total_inc))
+        sys.exit(1)
+    if total_inc:
+        sys.stdout.write("\nSKIP?  no failure, but %d metric(s) unmeasurable (box misplaced)\n" % total_inc)
+        sys.exit(2)
+    sys.stdout.write("\nPASS  identity clean\n")
+    sys.exit(0)
 
 
 if __name__ == "__main__":
