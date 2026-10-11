@@ -73,6 +73,30 @@ def draw_disc(img, cx, cy, r, label):
     d.text((cx + 6, cy - r - 14), label, fill=DISC, font=fnt)
 
 
+GENERIC_DIRS = {"groups", "gallery", "run", "runs", "work", "images", "vibe_images", "output"}
+
+
+def path_tag(img_path):
+    """底图路径 → 叠图文件名标签。
+
+    从右往左取组目录，再取**第一个有信息量的祖先目录**（跳过 groups/gallery/runs 这类
+    每层都一样的目录名）。只取组目录不够：组号每次 run 都从 01 重数，round-1 与 round-2
+    各有一个 `2026-10-11-05`，旧 run 的叠图会顶着同一个文件名留下来冒充新 run 的。
+    """
+    parts = os.path.normpath(os.path.abspath(img_path)).split(os.sep)
+    stem = parts[-1]
+    if stem.lower().endswith(".png"):
+        stem = stem[:-4]
+    keep = []
+    for p in parts[:-1][::-1]:
+        if not p or p in ("..", ".") or p.lower() in GENERIC_DIRS:
+            continue
+        keep.append(p)
+        if len(keep) == 2:
+            break
+    return "-".join(keep[::-1] + [stem])
+
+
 def frame_targets(paths):
     """帧规格 → (底图路径, [(cx, cy, r), ...])。尺寸按真图读，不信 w/h 字段。"""
     out = []
@@ -138,6 +162,7 @@ def main():
         die("--disc needs exactly one target image (got %d)" % len(targets))
 
     os.makedirs(out_dir, exist_ok=True)
+    used = {}
     for img_path, discs, src_frame in targets:
         im = Image.open(img_path).convert("RGB")
         W, H = im.size
@@ -147,13 +172,15 @@ def main():
         draw_grid(im)
         for n, (cx, cy, r) in enumerate(discs_px):
             draw_disc(im, cx, cy, r, "d%d" % n)
-        # 输出名必须带上底图所在的组目录：多组同时叠时每组的底图都叫 base-1.png，
-        # 只用 basename 会让后一组静默覆盖前一组（实测踩过）。
-        grp = os.path.basename(os.path.dirname(os.path.abspath(img_path)))
-        stem = os.path.basename(img_path)
-        if stem.lower().endswith(".png"):
-            stem = stem[:-4]
-        out = os.path.join(out_dir, "grid-%s-%s.png" % (grp, stem))
+        # 输出名必须带来源路径，否则多组同时叠时每组的底图都叫 base-1.png，
+        # 后一组会静默覆盖前一组（实测踩过）。只带**组目录**还不够：组号在每次
+        # run 里都从 01 重新数，round-1 与 round-2 各有一个 2026-10-11-05，
+        # 于是旧 run 的叠图会冒充新 run 的（实测被这样骗过一次）。
+        out = os.path.join(out_dir, "grid-%s.png" % path_tag(img_path))
+        if out in used and os.path.abspath(used[out]) != os.path.abspath(img_path):
+            die("output collision: %s would be written by both %s and %s"
+                % (out, used[out], img_path))
+        used[out] = img_path
         im.save(out)
         note = ("  frame=%s" % src_frame) if src_frame else ""
         sys.stdout.write("GRID  %s  %dx%d  discs=%d%s\n" % (out, W, H, len(discs_px), note))

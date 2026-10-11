@@ -81,6 +81,16 @@ node <skill>/scripts/assemble_frame.cjs gallery/groups/<组>/_scenes.json
 - 左右站位是否与 `scene.action` 一致（气泡锚点依赖它）。
 - 画面里有没有混进文字、招牌、水印。
 - 角色还是不是同一只（配色分布、眼型、尾巴形态）。
+- **物件之间的空间关系成不成立？（A 类）** 逐个问"它落在什么上面"：门与台阶——真实门口必须有一段与门等宽的水平平台，踏步从平台外沿才开始，**门底与第一级踏步亮带同一条线就是废图**（实测三抽全中：门前平台进深 0px）；家具的落地线；每个角色踩在哪一级/哪块地面上；画面里有没有既不通向哪里、也没有支撑的悬空块（实测出现过立在踏步上的混凝土三棱体，以及正视台阶时不该出现的对角侧墙带）；躯干朝向与脚朝向必须一致（实测两只靴尖朝左、外套前襟朝镜头）。
+- **交叠处的遮挡次序唯一吗？（B 类）** 凡是两个角色或人与物交叠，逐条问"谁在前面，边界在哪里断开"。三种实测废图形态：① **无根肢体**——一只带趾缝的爪子四周全是裤子像素，没有任何一段腿连到狗身上；② **该在前面却完整无断口**——要求"手掌按在平板边上"，实测平板边框一条线横过去没断，手指从平板**远侧**冒出来，那是手在平板后面；③ **一条轮廓上前后翻转**——被子的下沿在膝盖后面、连续走到大腿处又跑到腿前面；纸盖住袖口却躲在手指后面，且没有拇指。
+- **气泡尾巴指的是不是说话人？** 尾尖落在被子、墙壁、地板上＝这句话没人说。见 §5 的 anchor 口径。
+
+A/B 两类**都不在文本闸门的字段里**，机器看不见，只有看图这一层能抓到；写进 `scene_en` 时按本节末尾的"肯定式占位"纪律写，别写成 `no landing missing` 这类否定式。
+
+**实测有效的写法（v4 首抽就拿到）**：
+
+- A 类·把地面读法逐字排出来：`GROUND ORDER, read it from the wall outward: house wall, then the door, then a FLAT LEVEL CONCRETE LANDING as wide as the door and about one metre deep whose front edge is a straight line parallel to the wall, and only BEYOND that front edge do the steps begin`。再补一句台阶形状 `a simple straight run of equal-width rectangular concrete slabs with plain vertical risers; on either side of the run the ground is flat earth with grass`——**这一句同时清掉了悬空三棱体与对角侧墙带**，因为它们都是"台阶旁边那个说不清的东西"。
+- B 类·把"线在哪里断"写出来：`the tablet's bezel line runs along and then DISAPPEARS UNDERNEATH his palm and his four fingers curl over that edge onto the camera side of the screen`。多余肢体用**占位**排除而不是否定：`it has exactly two front legs, each one drawn as a continuous limb from its own shoulder down to its paw, and BOTH of those paws stand on the rug beside the boy's hip`——写 `no extra paw` 无效。
 - **解剖与视角是否自洽？** 这是模型不稳定的典型信号，**一律作废，绝不交付**。具体查：要求的视角和实际露出的部位对不对得上（实测过失败的例子：要求"完全背对、脸不可见"，结果画成**身体背面 + 头上长着正脸的眼睛和眉斑**的嵌合体）；四肢数量与着地关系；头颈连接；影子方向。
 
 **废图必须隔离，不能留在候选池里**。把不合格的原图移出 `vibe_images/`，改名放进项目的 `work/rejected/`（目录不存在就建），用文件名写清废因，例如
@@ -103,6 +113,7 @@ node <skill>/scripts/assemble_frame.cjs gallery/groups/<组>/_scenes.json
 
 - **一次只钉一个会互相抢像素的缺陷**，其余原样保留；否则你不知道到底是哪个改动起了作用，也不知道什么被弄坏了。修完必须回头复查上一版已经对的那几项。
 - **否定式对"可见性"也无效**。`so the paws are NOT visible`、`no blush`、`no stray marks` 这三句在实测里全部没被执行；有效写法是**用另一件肯定事实占住那圈像素**："脸颊与额头是同一种平涂肤色"、"从狗身侧往右扫过：体毛 → 尾巴带 → 毯子，两条前腿都留在那条带子后面"。
+- **相对高低的副词是低产出的，接触与占位才是高产出的**。`below him on the lower step` 在 06/07 连抽两次都没做到（实测狗四爪与男孩两靴落在同一条连续亮带上），但 v4 的 08 **逐字照抄同一句却做到了**——所以这不是措辞问题，是抽样问题，同一措辞成功率约 1/3，**该靠重抽而不是靠改写**。相比之下，写"谁压住谁、谁占住哪块地方"的接触/占位断言产出明显更高（`rests its chin squarely on the boy's knee`、`the tablet's bezel line disappears underneath his palm`、`both of those paws stand on the rug beside the boy's hip` 都在首抽落地）。
 - **别人给你的措辞就照抄，别顺手加工**。实测把建议句改写成 `high eye-to-face ratio typical of a NINE OR TEN YEAR OLD` 之后，这句字面要的正是幼儿特征，还和设定卡的 `about eight years old` / `soft round face` 三处打架。
 
 **所有文本闸门查的都是字段与几何；画面里角色在笑还是在哭、有没有换脸，机器一概不知**——除了 §6 的 `identity_check.py`，它量的是像素。这一步仍是人工终审之前唯一的自查机会。
@@ -111,8 +122,11 @@ node <skill>/scripts/assemble_frame.cjs gallery/groups/<组>/_scenes.json
 
 `frame-N.json`，schema `mood-still/2`。字段见 `references/frame-spec.md`。**它由 §3 的 `assemble_frame.cjs` 生成，不要手改**——要改就改 `_scenes.json` 再重跑，否则下一轮重跑会覆盖你的手改。你唯一需要手写的数是：
 
-- `bubbles[].anchor` 是**归一化坐标**（0..1），指向说话人头部中心；`head_r` 是头部圆盘半径（归一化到高度）。**看图之后再估**，估准了引线才不会指错人——但别裸估：跑 `python <skill>/scripts/anchor_grid.py --frame gallery/groups/<组>/frame-N.json`，它把 0.1 归一化网格与**当前这两个数画出的圆**叠在底图上，输出到 `work/grid/`（不进组目录、不进画廊）。圆压在头发上而不是脸上 → 调 `anchor`；圆盖不住头部质量 → 调 `head_r`。改 `_scenes.json` 重跑 §3 与 §6，再叠一次确认。帧还没生成时给它底图路径 + `--disc X,Y,R` 探一个候选圆。**首估必偏**：实测三个组的圆盘全部估歪，靠这一步一轮才改准。
-- `identity`（可选但强烈建议）：给 §6 同一性检查用的归一化区域框 `{ "under_eye_near": [x0,y0,x1,y1], "tail_region": [...], "dog_muzzle": [...] }`。**框必须由看过图的人标**——按颜色自动定位杂点不可行（那块水泥斑的 RGB 与背景墙几乎一样，实测命中 3567 处）。`identity_expect.tongue_baseline` 填同一场景已通过帧的舌色像素数，跨版本一比就知道狗嘴有没有从"张开带舌"闭成笑线。
+- `bubbles[].anchor` 是**归一化坐标**（0..1），指向说话人头部中心；`head_r` 是头部圆盘半径（归一化到高度）。**尾尖落在圆盘的上沿**（`compose_bubble` 把尾巴画到距 anchor 约 `0.85 × head_r × H` 处就停），所以气泡挂在头顶上方是正常外观，不用为此改 anchor。**真正要保证的是那个圆盘必须整个盖住那颗头**——圆盘偏出去，尾尖就会落在别的东西上。实测 05：狗的头在 (0.36, 0.67)，anchor 却标在 (0.28, 0.62)，圆盘偏到左边盖住了床上的折叠被子，尾尖落在 y≈0.48 的被子上，看图像"这句话是被子说的"。**看图之后再估**，估准了引线才不会指错人——但别裸估：跑 `python <skill>/scripts/anchor_grid.py --frame gallery/groups/<组>/frame-N.json`，它把 0.1 归一化网格与**当前这两个数画出的圆**叠在底图上，输出到 `work/grid/`（不进组目录、不进画廊）。圆压在头发上而不是脸上 → 调 `anchor`；圆盖不住头部质量 → 调 `head_r`。改 `_scenes.json` 重跑 §3 与 §6，再叠一次确认。帧还没生成时给它底图路径 + `--disc X,Y,R` 探一个候选圆。**首估必偏**：实测三个组的圆盘全部估歪，靠这一步一轮才改准。
+- `identity`（**cast 里有柴犬就必须含 `tail_region`，有小男孩就必须含 `under_eye_near`，缺一项 D11 直接 FAIL**）：给 §6 同一性检查用的归一化区域框 `{ "under_eye_near": [x0,y0,x1,y1], "tail_region": [...], "dog_muzzle": [...] }`。**框必须由看过图的人标**——按颜色自动定位杂点不可行（那块水泥斑的 RGB 与背景墙几乎一样，实测命中 3567 处）。`identity_expect.tongue_baseline` 填同一场景已通过帧的舌色像素数，跨版本一比就知道狗嘴有没有从"张开带舌"闭成笑线。
+  - **为什么把它从"建议"改成"强制"**：区域是自愿标的，`identity_check` 遇到空 `identity` 只报 `SKIP` 且**不计入退出码**。实测 round-2 七张里五张是 SKIP，其中 01 的尾卷心里就有一个带黑描边的蓝灰泪滴——补标区域后同一道 I2 立刻 FAIL（`hits=211 density=0.71`）。**闸门是自愿参加的，同一缺陷在没标区域的帧上零拦截。**
+  - **别凭坐标猜框**：实测给 03 猜了一个尾框，命中框左上角 30×45 的暗背景，把一张本来正常的帧报成 FAIL；给 05 猜的框正好盖住那块小灰块，却因为它太小被中位数吃掉而 PASS。标框前后都要用 `anchor_grid.py` 叠图看坐标落在哪。
+  - **I1b（眼下平色极差）只在平光脸上成立**。阈值 15 是从一对平光近同构图的帧量出来的；换成侧光/逆光构图，脸颊本来就跨在明暗交界上，框挪到"眼下纯皮肤"仍量到 68–157 的极差（实测三张全报 INCONCLUSIVE 或 FAIL）。**这属于量法失效，不要为此放宽阈值**——正确改法是拿同一张脸的额头做相对比较，改完要在平光与侧光两种构图上各验一次。在此之前：`SKIP?` 与 FAIL 都算**没过**，据实写进报告。
 - 气泡文本超长按 `references/bubble-rules.md` 压缩，并在 `why` 末尾追加 `（已压缩：原句 <…>）`；`line_pick.quote` 永远是原文。**压缩不许丢掉态度词**（实测把「你激动什么」切掉，等于把这句的刀锋剪了）；`why` 里声称改了什么，必须以文件为准。
 
 `source.digest` / `source.roster_digest` / `prompt.text` / `prompt.chars` / `image.w/h` 都由脚本写，不要手填——手填的 `roster_digest` 只要格式差一点（例如多打一个 `sha1:` 前缀）就会与素材对不上，D4 被降级跳过，这一帧就失去设定卡保护，而退出码还是 0。
@@ -150,7 +164,7 @@ python <skill>/scripts/build_gallery.py
 只要动过 skill 自身（`assets/`、`scripts/`、`SKILL.md`），再多跑这三条：
 
 ```bash
-node <skill>/scripts/mutation_test.cjs    # 变异实验：证明闸门真的会咬，30 例
+node <skill>/scripts/mutation_test.cjs    # 变异实验：证明闸门真的会咬，35 例
 node <skill>/scripts/check_skill.cjs      # frontmatter / 正文长度 / 引用的文件是否都存在
 node <skill>/scripts/verify_gallery.cjs   # 在项目根跑：画廊引用的图都在，废图没混进交付
 ```
@@ -196,7 +210,7 @@ python <skill>/scripts/drift_check.py $F/single-line-stale   --expect stale
 - `assets/style-lock.txt` — 画风锁原文，含禁文字硬条款。
 - `assets/bubble.json` — 气泡样式：字体、字号、槽宽、描边、引线、避让阈值。
 - `scripts/assemble_frame.cjs` — §3/§5 的机械拼装：`_scenes.json` → `prompt-N.txt` + `frame-N.json`，两个 digest 与 `image.w/h` 由它算。零 npm 依赖。
-- `scripts/validate_frame.cjs` — D0-D10 前置闸。零 npm 依赖。
+- `scripts/validate_frame.cjs` — D0-D11 前置闸。零 npm 依赖。
 - `scripts/compose_bubble.py` — 接缝 S1，确定性合成。需 Pillow。用法 `<帧> [<帧> ...] <输出目录>` 或 `--fit <帧> ...`。头部圆盘几何 `head_disc()` 是**唯一定义处**。
 - `scripts/anchor_grid.py` — §5 的看图辅助（不参与交付）：叠 0.05/0.1 归一化网格与头部圆盘，输出到 `work/grid/`。圆盘几何 import 自 `compose_bubble.head_disc`，两边永远是同一个圆。
 - `scripts/identity_check.py` — §6 的同一性回归检查：读帧规格里的 `identity` 区域，**量像素**判眼下平色 / 尾巴灰块 / 口鼻舌色。它是为"重出把角色换脸"这一类失败专门造的，此前没有任何检查会拦。

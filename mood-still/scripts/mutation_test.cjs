@@ -72,6 +72,7 @@ const base = {
     { speaker: '柴犬', text: '你又忘带伞了。', original: '你又忘带伞了。', anchor: [0.3, 0.25], head_r: 0.14, slot: 'mid' },
     { speaker: '小男孩', text: '这次是真的忘了。', original: '这次是真的忘了。', anchor: [0.7, 0.3], head_r: 0.13, slot: 'mid' },
   ],
+  identity: { under_eye_near: [0.70, 0.30, 0.76, 0.34], tail_region: [0.20, 0.55, 0.30, 0.66] },
 };
 
 function mutate(fn) { const f = JSON.parse(JSON.stringify(base)); fn(f); return f; }
@@ -105,6 +106,13 @@ const cases = [
   ['M17-col-closing-punct-fits', mutate(f => { f.bubbles[0].text = '你今天有没有带伞呀我真的想知道答案！！'; }), null],
   //   启始标点不允许 -> 画不下 -> 不许放过
   ['M19-col-opening-punct-overflows', mutate(f => { f.bubbles[0].text = '你今天有没有带伞呀我真的想知道答案（（'; }), 'D6'],
+  // D11：identity_check 遇到空 identity 只报 SKIP 且不计退出码，所以"没标"必须在 validate 就死。
+  ['M21-identity-missing', mutate(f => { delete f.identity; }), 'D11'],
+  ['M22-identity-empty', mutate(f => { f.identity = {}; }), 'D11'],
+  // 键名打错最阴：identity_check 只认白名单，多余键它不看，闸门看起来绿着其实一项没跑。
+  ['M23-identity-key-typo', mutate(f => { f.identity.tailbox = f.identity.tail_region; delete f.identity.tail_region; }), 'D11'],
+  ['M24-identity-box-too-thin', mutate(f => { f.identity.tail_region = [0.20, 0.55, 0.2004, 0.5504]; }), 'D11'],
+  ['M25-identity-box-inverted', mutate(f => { f.identity.tail_region = [0.30, 0.66, 0.20, 0.55]; }), 'D11'],
 ];
 
 let pass = 0;
@@ -195,6 +203,7 @@ fs.writeFileSync(path.join(M20, '_scenes.json'), JSON.stringify({
   candidates: [{
     id: 1, line_pick: base.line_pick, cast: CAST, scene: base.scene,
     scene_en: 'Night. A small bedroom. The dog sits facing the camera.', bubbles: base.bubbles,
+    identity: base.identity, identity_expect: { tongue_baseline: 120 },
   }],
 }, null, 2));
 let m20code = 0, m20err = '';
@@ -207,7 +216,9 @@ const m20ok = m20code === 0 && m20v.code === 0
   && !/^sha1:/.test(m20frame.source.roster_digest)
   && m20txt === m20frame.prompt.text
   && CAST.every(c => m20frame.prompt.text.includes(ROSTER[c].bible))
-  && /absolutely no text/.test(m20frame.prompt.text);
+  && /absolutely no text/.test(m20frame.prompt.text)
+  && JSON.stringify(m20frame.identity) === JSON.stringify(base.identity)
+  && m20frame.identity_expect.tongue_baseline === 120;
 console.log(`${m20ok ? 'ok  ' : 'BAD '} assemble-verbatim-contract   expect=PASS+3 pins got=${m20code !== 0 ? m20err.trim().slice(0, 40) : (m20v.code === 0 ? 'PASS' : 'validate FAIL')}`);
 
 // 看图辅助与合成必须共用同一个圆：anchor_grid.py 是 import compose_bubble.head_disc 的，
@@ -226,7 +237,7 @@ try { g21out = execFileSync('python', [path.join(SKILL, 'scripts', 'anchor_grid.
 catch (e) { g21out = (e.stdout || '') + (e.stderr || ''); g21code = e.status || 1; }
 const g21line = (g21out.split(/\r?\n/).find(l => /^DISC\s+0\s/.test(l)) || '').replace(/\s+/g, ' ').trim();
 const gridok = g21code === 0 && g21line === 'DISC 0 512.0 192.0 76.8'
-  && fs.existsSync(path.join(M21, 'grid', 'grid-M21-base-1.png'))
+  && fs.readdirSync(path.join(M21, 'grid')).filter(f => /-M21-base-1\.png$/.test(f)).length === 1
   && !/[^\x00-\x7F]/.test(g21out);
 console.log(`${gridok ? 'ok  ' : 'BAD '} anchor-grid-geometry        expect=DISC 0 512.0 192.0 76.8  got=${g21code !== 0 ? 'exit' + g21code + ' ' + g21out.trim().slice(0, 30) : (g21line || 'no DISC')}`);
 
@@ -241,9 +252,29 @@ try { g22out = execFileSync('python', [path.join(SKILL, 'scripts', 'anchor_grid.
   path.join(M21, 'frame-1.json'), path.join(M22, 'frame-1.json'), '--out', path.join(OUT, 'grid-multi')], { encoding: 'utf8' }); }
 catch (e) { g22out = (e.stdout || '') + (e.stderr || ''); g22code = e.status || 1; }
 const multiok = g22code === 0
-  && fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M21-base-1.png'))
-  && fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png'));
-console.log(`${multiok ? 'ok  ' : 'BAD '} anchor-grid-multi-group     expect=2 distinct PNGs got=${g22code !== 0 ? 'exit' + g22code : (fs.existsSync(path.join(OUT, 'grid-multi', 'grid-M22-base-1.png')) ? '2 distinct PNGs' : 'collision: outputs overwrote each other')}`);
+  && fs.readdirSync(path.join(OUT, 'grid-multi')).filter(f => /^grid-.*base-1\.png$/.test(f)).length === 2;
+console.log(`${multiok ? 'ok  ' : 'BAD '} anchor-grid-multi-group     expect=2 distinct PNGs got=${g22code !== 0 ? 'exit' + g22code : (fs.readdirSync(path.join(OUT, 'grid-multi')).filter(f => /^grid-.*base-1\.png$/.test(f)).length + ' files')}`);
+
+// 组号每次 run 都从 01 重数：round-1 与 round-2 各有一个 2026-10-11-05，底图都叫 base-1.png。
+// 只用组目录命名，旧 run 的叠图会顶着同一个文件名留下来冒充新 run 的（实测被这样骗过一次：
+// 拿着 round-1 的叠图去读 round-2 的构图，坐标全错）。
+const M26 = path.join(OUT, 'M26');
+for (const r of ['round-1', 'round-2']) {
+  const d = path.join(M26, r, 'gallery', 'groups', '2026-10-11-05');
+  fs.mkdirSync(d, { recursive: true });
+  fs.writeFileSync(path.join(d, 'base-1.png'), makePng(W, H, r === 'round-1' ? [10, 20, 30] : [200, 210, 220]));
+}
+const crossA = path.join(M26, 'round-1', 'gallery', 'groups', '2026-10-11-05', 'base-1.png');
+const crossB = path.join(M26, 'round-2', 'gallery', 'groups', '2026-10-11-05', 'base-1.png');
+let g26code = 0, g26out = '';
+const g26dir = path.join(OUT, 'grid-crossrun');
+try { g26out = execFileSync('python', [path.join(SKILL, 'scripts', 'anchor_grid.py'),
+  crossA, crossB, '--out', g26dir], { encoding: 'utf8' }); }
+catch (e) { g26out = (e.stdout || '') + (e.stderr || ''); g26code = e.status || 1; }
+const g26files = g26code === 0 && fs.existsSync(g26dir) ? fs.readdirSync(g26dir) : [];
+const crossrunok = g26code === 0 && g26files.length === 2
+  && g26files.some(f => /round-1/.test(f)) && g26files.some(f => /round-2/.test(f));
+console.log(`${crossrunok ? 'ok  ' : 'BAD '} anchor-grid-cross-run       expect=round-1+round-2 files got=${g26code !== 0 ? 'exit' + g26code : g26files.join(', ')}`);
 
 // 混组调用合成：两个组都有 frame-1.json，共用一个输出目录时后写的那张会静默盖掉前一张。
 // 测试场第一次跑四个组就中了这一枪——必须当场拒绝。

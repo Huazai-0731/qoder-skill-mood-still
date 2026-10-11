@@ -50,9 +50,11 @@
 | `bubbles` | ≤2 个；`speaker` 必须在 `cast` 中 | D6 | 手写 |
 | `bubbles.text` | 容量由 `compose_bubble.py --fit`（即 `wrap()`）**独占判定**：≤ `max_lines` 行，且收尾标点允许把行撑破 1 列、启始标点不允许收行。所以容量**不是**一个总列数，别在任何地方复算 | D6 | 手写 |
 | `bubbles.original` | 压缩前的原句；与 `text` 不同时画廊会高亮 | 约定 | 手写 |
-| `bubbles.anchor` | 归一化 0..1，指向说话人头部中心；**看图之后**再估，改在 `_scenes.json` 里。用 `scripts/anchor_grid.py --frame <帧>` 把网格与当前圆叠上去查，别裸估 | D7 | 手写 |
+| `bubbles.anchor` | 归一化 0..1，指向说话人头部中心；**看图之后**再估，改在 `_scenes.json` 里。用 `scripts/anchor_grid.py --frame <帧>` 把网格与当前圆叠上去查，别裸估。**尾尖落在圆盘上沿**（尾巴画到距 anchor 约 `0.85 × head_r × H` 处就停），所以气泡挂在头顶上方是正常外观；要保证的是**圆盘整个盖住那颗头**，偏出去尾尖就落在别的东西上 | D7 | 手写 |
 | `bubbles.head_r` | 归一化到画面**高度**的头部半径，0.02..0.5。像素口径由 `compose_bubble.head_disc()` 单源定义，`anchor_grid.py` import 同一个函数——两边永远是同一个圆 | D7 | 手写 |
 | `bubbles.slot` | `small`(7列) / `mid`(9列) / `large`(12列) | D6 | 手写 |
+| `identity` | **必填、非空**。给 `identity_check.py` 量的归一化区域框 `{x0,y0,x1,y1}`，键名白名单：`under_eye_near` `under_eye_far` `tail_region` `dog_muzzle` `boy_eyes` `boy_head_body`。打错的键名两边都不看，所以白名单外的键直接判死；框要 ≥0.01 见方，太细的框量的是背景不是缺陷。**框必须由看过图的人标**，并用 `anchor_grid.py` 叠图核对坐标 | D11 | 手写 |
+| `identity_expect` | 覆盖 `identity_check.py` 的默认阈值，目前用到 `tongue_baseline`（同一场景已通过帧的舌色像素数）与 `under_eye_flat_max` | — | 手写 |
 
 ## 死板判定用到的四个维度
 

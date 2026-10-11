@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * validate_frame.cjs — 帧规格前置闸 D1-D9
+ * validate_frame.cjs — 帧规格前置闸 D1-D11
  * 零 npm 依赖。stdout 全 ASCII（Windows GBK 控制台会把中文打成 ????）。
  * 用法: node validate_frame.cjs <frame.json> [frame2.json ...]
  */
@@ -148,6 +148,23 @@ function check(fr, file, fit) {
     } else {
       const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
       if (w !== img.w || h !== img.h) E(9, `declared ${img.w}x${img.h} but PNG is ${w}x${h}`);
+    }
+  }
+
+  // D11 identity 区域：identity_check 只认这几个键名，且遇到空 identity 只报 SKIP（不计退出码）。
+  // 空 = 这一项根本不存在 = 同一缺陷在没标区域的帧上零拦截，所以在这里就拦。
+  const ID_KEYS = ['under_eye_near', 'under_eye_far', 'tail_region', 'dog_muzzle', 'boy_eyes', 'boy_head_body'];
+  const id = fr.identity;
+  if (!id || typeof id !== 'object' || !Object.keys(id).length) {
+    E(11, 'identity regions missing or empty: identity_check will SKIP this frame, and SKIP is not a pass');
+  } else {
+    for (const [k, box] of Object.entries(id)) {
+      if (!ID_KEYS.includes(k)) E(11, `unknown identity key ${JSON.stringify(k)}: identity_check ignores it silently, so it looks checked but never runs. allowed: ${ID_KEYS.join(' | ')}`);
+      const ok4 = Array.isArray(box) && box.length === 4 && box.every(v => typeof v === 'number' && v >= 0 && v <= 1);
+      if (!ok4) { E(11, `identity.${k} must be [x0,y0,x1,y1] in 0..1, got ${JSON.stringify(box)}`); continue; }
+      const [x0, y0, x1, y1] = box;
+      if (x1 <= x0 || y1 <= y0) E(11, `identity.${k} is inverted or degenerate: ${JSON.stringify(box)}`);
+      else if (x1 - x0 < 0.01 || y1 - y0 < 0.01) E(11, `identity.${k} is smaller than 0.01 of the frame (${JSON.stringify(box)}): a box that thin measures background, not the defect`);
     }
   }
 
